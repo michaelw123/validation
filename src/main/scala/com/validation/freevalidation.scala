@@ -58,7 +58,6 @@ object freevalidation extends App {
 
   sealed trait Executor[F[_]] {
     def exec[A](fa: F[A]): Option[Error]
-
     def unbox[A](fa: F[A]): A
   }
 
@@ -72,8 +71,10 @@ object freevalidation extends App {
     _ <- AgeValidator(person.age)
   } yield ()
 
-  val errors = validate(validation, validators)
-  if (errors.isEmpty) println(save(person)) else errors.foreach(println)
+  validate(validation, validators) match {
+    case Nil => println(save(person))
+    case errors => errors foreach println
+  }
 
   def save(nameage: NameAge): Boolean = {
     println(s"save ${nameage.name} at age ${nameage.age}")
