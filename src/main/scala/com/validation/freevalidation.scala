@@ -19,7 +19,6 @@ object freevalidation extends App {
   case class NameAge(name:String, age:Int)
   sealed trait Validator[A] {
     def validate:Option[Error]
-
     def unbox:A
   }
   case class NameValidator(name:String) extends Validator[String] {
@@ -63,7 +62,7 @@ object freevalidation extends App {
   } yield ()
 
   val x = validate(List.empty[Option[Error]], validation, validators)
-  if (x._1.isEmpty) println(save(person)) else  x._1.foreach(println)
+  if (x._1.isEmpty) println(save(person)) else  x._1.flatten.foreach(println)
 
   def save(name:String, age:Int):Boolean = {
     println(s"save $name at age $age")
