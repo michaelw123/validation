@@ -16,7 +16,7 @@ object freevalidation extends App {
 
   implicit def liftF[F[_], A](fa: F[A]): Free[F, A] = FlatMap(fa, Return.apply)
 
-  case class NameAge(name: String, age: Int)
+  case class Person(name: String, age: Int)
 
   sealed trait Validator[A] {
     def validate: Option[Error]
@@ -47,18 +47,18 @@ object freevalidation extends App {
     override def unbox[A](fa: Validator[A]) = fa.unbox
     override def exec[A](fa: Validator[A]) = fa.validate
   }
-  val person = NameAge("John", 20)
+  val person = Person("John", 20)
   val validation = for {
     _ <- NameValidator(person.name)
     _ <- AgeValidator(person.age)
   } yield ()
 
   validate(validation, validators) match {
-    case Nil => println(save(person))
+    case Nil => save(person)
     case errors => errors foreach println
   }
 
-  def save(nameage: NameAge): Boolean = {
+  def save(nameage: Person): Boolean = {
     println(s"save ${nameage.name} at age ${nameage.age}")
     true
   }
