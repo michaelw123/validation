@@ -38,20 +38,7 @@ object freevalidation extends App {
     def validate:Either[Error, NameAge]= Right(nameage)
     def unbox:NameAge = nameage
   }
-  object Validator {
-    def unbox[Validator[A], A](v: Validator[A]) = {
-      v match {
-        case nv: NameValidator => nv.name
-        case av: AgeValidator => av.age
-        case nav: NameAgeValidator => nav.nameage
-      }
-    }
 
-    implicit def asInstanceOf(x:AgeValidator):Int = {
-      println("implicit asInstanceOf")
-      x.age
-    }
-  }
   implicit def unbox(x:AgeValidator):Int = {
     println("implicit unbox")
     x.age
@@ -79,7 +66,7 @@ object freevalidation extends App {
       }
     }
   }
-  val person  = NameAge("John",20)
+  val person  = NameAge("",20)
   val validation = for {
     _ <- NameValidator(person.name)
     _  <- AgeValidator(person.age)
@@ -103,7 +90,7 @@ object freevalidation extends App {
       case FlatMap(sub, cont) =>
         executor.exec(sub) match {
           case (None, b) => validate(errorList, cont(b), executor)
-          case (Some(a), b) => validate(errorList :+ a, cont(b), executor);
+          case (Some(a), b) => validate(a :: errorList, cont(b), executor);
         }
     }
   }
