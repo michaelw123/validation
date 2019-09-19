@@ -5,9 +5,7 @@ object freevalidation extends App {
   sealed trait Free[F[_], A]  {
     def flatMap[B](f: A => Free[F, B]): Free[F, B] = this match {
       case Return(a) => f(a)
-      case FlatMap(sub, cont) => {
-        FlatMap(sub, cont andThen (_ flatMap f))
-      }
+      case FlatMap(sub, cont) => FlatMap(sub, cont andThen (_ flatMap f))
     }
     def  map[B](f: A => B): Free[F, B] = flatMap(a => Return(f(a)))
   }
@@ -64,10 +62,6 @@ object freevalidation extends App {
   val x = validate(List.empty[Option[Error]], validation, validators)
   if (x._1.isEmpty) println(save(person)) else  x._1.flatten.foreach(println)
 
-  def save(name:String, age:Int):Boolean = {
-    println(s"save $name at age $age")
-    true
-  }
   def save(nameage:NameAge):Boolean = {
     println(s"save ${nameage.name} at age ${nameage.age}")
     true
