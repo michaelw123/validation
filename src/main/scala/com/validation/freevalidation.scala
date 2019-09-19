@@ -11,9 +11,7 @@ object freevalidation extends App {
 
     def map[B](f: A => B): Free[F, B] = flatMap(a => Return(f(a)))
   }
-
   final case class Return[F[_], A](a: A) extends Free[F, A]
-
   case class FlatMap[F[_], I, A](sub: F[I], cont: I => Free[F, A]) extends Free[F, A]
 
   implicit def liftF[F[_], A](fa: F[A]): Free[F, A] = FlatMap(fa, Return.apply)
@@ -36,25 +34,9 @@ object freevalidation extends App {
     def unbox: Int = age
   }
 
-  case class NameAgeValidator(nameage: NameAge) extends Validator[NameAge] {
-    def validate = None
-    def unbox: NameAge = nameage
-  }
-
-  trait Error {
-    def errorCode: Int
-    def errorMsg: String
-  }
-
-  case object AgeError extends Error {
-    val errorCode = 0
-    val errorMsg = "Illegal Age"
-  }
-
-  case object NameError extends Error {
-    val errorCode = 1
-    val errorMsg = "Illegal Name"
-  }
+  abstract class Error (errorCode:Int, errormsg:String)
+  case object AgeError extends Error(errorCode=0, errormsg = "Illegal Age")
+  case object NameError extends Error (errorCode=1, errormsg = "Illegal Name")
 
   sealed trait Executor[F[_]] {
     def exec[A](fa: F[A]): Option[Error]
@@ -65,7 +47,7 @@ object freevalidation extends App {
     override def unbox[A](fa: Validator[A]) = fa.unbox
     override def exec[A](fa: Validator[A]) = fa.validate
   }
-  val person = NameAge("", 10)
+  val person = NameAge("John", 20)
   val validation = for {
     _ <- NameValidator(person.name)
     _ <- AgeValidator(person.age)
