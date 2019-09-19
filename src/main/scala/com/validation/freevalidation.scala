@@ -19,15 +19,28 @@ object freevalidation extends App {
   case class NameAge(name:String, age:Int)
   sealed trait Validator[A] {
     def validate(arg:A):Either[Error, A]
+    def validate:Either[Error, A]
   }
   case class NameValidator(name:String) extends Validator[String] {
     def validate (name:String) =  if (name.isEmpty) Left(NameError) else Right(name)
+    def validate:Either[Error, String] = if (name.isEmpty) Left(NameError) else Right(name)
   }
   case class AgeValidator(age:Int) extends Validator[Int] {
     def validate(age: Int) = if (age >= 18) Right(age) else Left(AgeError)
+    def validate:Either[Error, Int]= if (age >= 18) Right(age) else Left(AgeError)
   }
   case class NameAgeValidator(nameage:NameAge) extends Validator[NameAge] {
     def validate(nameage: NameAge) = Right(nameage)
+    def validate:Either[Error, NameAge]= Right(nameage)
+  }
+  object Validator {
+    def unliftV[Validator[A], A](v: Validator[A]) = {
+      v match {
+        case nv: NameValidator => nv.name
+        case av: AgeValidator => av.age
+        case nav: NameAgeValidator => nav.nameage
+      }
+    }
   }
   trait Error {
     def errorCode:Int
@@ -41,45 +54,20 @@ object freevalidation extends App {
     val errorCode = 1
     val errorMsg = "Illegal Name"
   }
-  object Validator {
-    def unliftV[Validator[A], A](v: Validator[A]) = {
-      v match {
-        case nv: NameValidator => nv.name
-        case av: AgeValidator => av.age
-        case nav: NameAgeValidator => nav.nameage
-      }
-    }
-  }
-
   sealed trait Executor[F[_]] {
     def exec[A](fa: F[A]): Either[Error, A]
   }
   val validators = new  Executor[Validator] {
-    override def exec[A](fa: Validator[A]):Either[Error, A] = fa match {
-      case NameValidator(name) => {
-        println(s"validate name $name")
-        fa.validate(name.asInstanceOf[A])
-      }
-      case AgeValidator(age) => {
-        println(s"validate age $age")
-        fa.validate(age.asInstanceOf[A])
-      }
-      case NameAgeValidator(nameage) => {
-        println(s"validate nameage $nameage")
-        fa.validate(nameage.asInstanceOf[A])
-      }
-    }
+    override def exec[A](fa: Validator[A]):Either[Error, A] = fa.validate
   }
-
+  val person  = NameAge("Joe Doe",20)
   val validation = for {
-    name <- NameValidator("Joe Doe")
-    age  <- AgeValidator(17)
-    nameage <- NameAgeValidator(NameAge("Michael",55))
+    _ <- NameValidator(person.name)
+    _  <- AgeValidator(person.age)
   } yield ()
 
-  println(validation)
-  val x = validateAndRun(List.empty[Error], validation, validators)
-  if (x._1.isEmpty) println(save(NameAge("Michael",55))) else  x._1.foreach(println)
+  val x = validate(List.empty[Error], validation, validators)
+  if (x._1.isEmpty) println(save(person)) else  x._1.foreach(println)
 
   def save(name:String, age:Int):Boolean = {
     println(s"save $name at age $age")
@@ -90,20 +78,14 @@ object freevalidation extends App {
     true
   }
 
-  def validateAndRun[F[_], A](errorList: List[Error], prg: Free[F, A], executor: Executor[F]): (List[Error], Option[A]) = {
+  def validate[F[_], A](errorList: List[Error], prg: Free[F, A], executor: Executor[F]): (List[Error], Option[A]) = {
     prg match {
-      case Return(a) => {
-        (errorList, Some(a))
-      }
+      case Return(a) => (errorList, Some(a))
       case FlatMap(sub, cont) =>
         val z = executor.exec(sub)
         z match {
-          case Right(a) => {
-            validateAndRun(errorList, cont(a), executor)
-          }
-          case Left(e) => {
-            validateAndRun(errorList :+ e, cont(Validator.unliftV(sub)), executor)
-          }
+          case Right(a) => validate(errorList, cont(a), executor)
+          case Left(e) => validate(errorList :+ e, cont(Validator.unliftV(sub)), executor)
         }
  //      executor.exec(sub).flatMap(x => validateAndRun(cont(x), executor))
     }
