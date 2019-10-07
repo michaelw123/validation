@@ -20,12 +20,11 @@ object freevalidation extends App {
 
   sealed trait Validator[A] {
     def validate: Option[Error]
-
     def unbox: A
   }
 
   case class NameValidator(name: String) extends Validator[String] {
-    def validate = if (name.isEmpty) Option(NameError) else None
+    def validate = if (name.isEmpty) Some(NameError) else None
     def unbox: String = name
   }
 
@@ -43,7 +42,7 @@ object freevalidation extends App {
     def unbox[A](fa: F[A]): A
   }
 
-  val validators = new Executor[Validator] {
+  val interpreter  = new Executor[Validator] {
     override def unbox[A](fa: Validator[A]) = fa.unbox
     override def exec[A](fa: Validator[A]) = fa.validate
   }
@@ -53,7 +52,7 @@ object freevalidation extends App {
     _ <- AgeValidator(person.age)
   } yield ()
 
-  validate(validation, validators) match {
+  validate(validation, interpreter ) match {
     case Nil => save(person)
     case errors => errors foreach println
   }
@@ -63,10 +62,10 @@ object freevalidation extends App {
     true
   }
 
-  def validate[F[_], A](prg: Free[F, A], executor: Executor[F]): List[Error] = {
+  def validate[F[_], A](prg: Free[F, A], interpreter : Executor[F]): List[Error] = {
     def go(errorList: List[Option[Error]], prg: Free[F, A]): List[Option[Error]]= prg match {
       case Return(a) => errorList
-      case FlatMap(sub, cont) => go(executor.exec(sub) :: errorList, cont(executor.unbox(sub)))
+      case FlatMap(sub, cont) => go(interpreter.exec(sub) :: errorList, cont(interpreter.unbox(sub)))
     }
     go(List.empty[Option[Error]], prg).flatten
   }
